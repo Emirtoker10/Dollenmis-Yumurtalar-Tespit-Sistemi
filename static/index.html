@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Döllenme Durumu Tarayıcı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14100c;
+    --bg-soft: #1c1712;
+    --cream: #ede6d6;
+    --cream-dim: #a89e8c;
+    --amber: #f2a63d;
+    --amber-dim: #6b4a1e;
+    --fertile: #7fa36b;
+    --infertile: #9c9384;
+    --dead: #a13d2e;
+    --line: rgba(237,230,214,0.12);
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0; padding:0;
+    background: radial-gradient(120% 100% at 50% -10%, #201a13 0%, var(--bg) 55%, #0d0a07 100%);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 20px 24px;
+  }
+
+  /* ---- Three-way layout: sidebar (left) + merged stage (middle+right) ---- */
+  .layout{
+    display:grid;
+    grid-template-columns: 400px 1fr;
+    gap: 64px;
+    width: 100%;
+    max-width: 1280px;
+    align-items: stretch;
+  }
+
+  .sidebar{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap: 18px;
+    text-align:center;
+  }
+
+  .logo-wrap{ display:flex; align-items:center; justify-content:center; min-height: 84px; width:100%; }
+  .logo-img{ max-width: 340px; max-height: 130px; object-fit: contain; display:block; }
+  .logo-fallback{
+    display:none;
+    align-items:center;
+    gap: 8px;
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--amber);
+  }
+  .logo-fallback span{
+    font-family:'Fraunces', serif;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+
+  .eyebrow{
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--amber);
+    font-weight: 600;
+  }
+
+  .sidebar h1{
+    font-family:'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: clamp(28px, 3.4vw, 40px);
+    line-height: 1.1;
+    margin: 0;
+    text-align:center;
+  }
+
+  .sidebar .sub{
+    color: var(--cream-dim);
+    font-size: 15px;
+    text-align:center;
+    line-height:1.55;
+    margin: 0;
+  }
+
+  /* ---- Merged middle+right stage: fixed height so the page never scrolls ---- */
+  .stage{
+    height: 560px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    width: 100%;
+  }
+
+  /* ---- The egg / lamp ---- */
+  .rig{
+    position:relative;
+    width: 200px;
+    height: 240px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom: 18px;
+    flex-shrink: 0;
+  }
+
+  .glow{
+    position:absolute;
+    inset: -46px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--glow-color, var(--amber-dim)) 0%, transparent 68%);
+    opacity: 0.55;
+    filter: blur(2px);
+    transition: background 0.6s ease, opacity 0.6s ease;
+    animation: breathe 4s ease-in-out infinite;
+    pointer-events:none;
+  }
+
+  @keyframes breathe{
+    0%, 100% { transform: scale(1); opacity: 0.45; }
+    50% { transform: scale(1.06); opacity: 0.65; }
+  }
+
+  .egg{
+    position:relative;
+    width: 168px;
+    height: 208px;
+    border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+    background: linear-gradient(180deg, #2a2118 0%, #1a140e 70%);
+    border: 1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    cursor:pointer;
+    transition: border-color 0.3s ease, transform 0.2s ease;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 20px 40px rgba(0,0,0,0.35);
+  }
+
+  .egg:hover{ transform: translateY(-2px); }
+  .egg.dragover{ border-color: var(--amber); }
+
+  .egg img{
+    width:100%; height:100%;
+    object-fit: cover;
+    opacity: 0.92;
+  }
+
+  .egg-hint{
+    text-align:center;
+    color: var(--cream-dim);
+    font-size: 12px;
+    padding: 0 22px;
+    line-height:1.4;
+  }
+
+  .egg-hint strong{
+    display:block;
+    color: var(--cream);
+    font-size: 13px;
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+
+  input[type=file]{ display:none; }
+
+  .status-line{
+    min-height: 18px;
+    font-size: 12px;
+    color: var(--amber);
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+  }
+
+  .status-line.pulsing{ animation: fade 1.3s ease-in-out infinite; }
+  @keyframes fade{ 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+  .nav{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap: 16px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+  }
+  .nav-btn{
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--cream);
+    font-size: 16px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  }
+  .nav-btn:hover:not(:disabled){ border-color: var(--amber); color: var(--amber); }
+  .nav-btn:disabled{ opacity: 0.3; cursor: default; }
+  .nav-counter{
+    font-size: 11px;
+    color: var(--cream-dim);
+    letter-spacing: 0.05em;
+    min-width: 46px;
+    text-align:center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Result panel ---- */
+  .result{
+    width: 100%;
+    max-width: 380px;
+    display:none;
+    flex-shrink: 0;
+  }
+  .result.show{ display:block; }
+
+  .result-label{
+    text-align:center;
+    margin-bottom: 14px;
+  }
+  .result-label .name{
+    font-family:'Fraunces', serif;
+    font-size: 25px;
+    font-weight: 500;
+    color: var(--result-color, var(--cream));
+  }
+  .result-label .conf{
+    color: var(--cream-dim);
+    font-size: 13px;
+    margin-top: 3px;
+  }
+
+  .bars{ display:flex; flex-direction:column; gap: 9px; }
+
+  .bar-row{ display:flex; align-items:center; gap: 10px; }
+  .bar-row .label{
+    width: 70px;
+    font-size: 11px;
+    color: var(--cream-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .bar-track{
+    flex:1;
+    height: 5px;
+    background: rgba(237,230,214,0.08);
+    border-radius: 3px;
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    width:0%;
+    border-radius:3px;
+    transition: width 1s cubic-bezier(.2,.7,.3,1);
+  }
+  .bar-pct{
+    width: 42px;
+    text-align:right;
+    font-size: 11px;
+    color: var(--cream-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .reset-btn{
+    display:block;
+    margin: 18px auto 0;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--cream-dim);
+    padding: 8px 18px;
+    border-radius: 100px;
+    font-size: 12px;
+    cursor:pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .reset-btn:hover{ border-color: var(--amber); color: var(--cream); }
+
+  .error{
+    color: var(--dead);
+    font-size: 13px;
+    text-align:center;
+    margin-top: 8px;
+    display:none;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 960px){
+    .layout{ grid-template-columns: 1fr; gap: 32px; }
+    .stage{ height: auto; min-height: 500px; padding: 12px 0; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo-wrap">
+        <img src="/static/logo.png" alt="Keskinoğlu" class="logo-img"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div class="logo-fallback">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6">
+            <ellipse cx="12" cy="13" rx="7" ry="9"/>
+          </svg>
+          <span>Keskinoğlu</span>
+        </div>
+      </div>
+
+      <div class="eyebrow">Kuluçkahane AI</div>
+      <h1>Yumurtayı ışığa tut.</h1>
+
+      <p class="sub">Bir ya da birden fazla candling görüntüsü yükle, model fertile / infertile / dead durumunu saniyeler içinde sınıflandırsın.</p>
+    </aside>
+
+    <section class="stage">
+      <div class="rig">
+        <div class="glow" id="glow"></div>
+        <label class="egg" id="egg" for="fileInput">
+          <div class="egg-hint" id="eggHint">
+            <strong>Görüntüleri buraya bırak</strong>
+            ya da seçmek için tıkla (birden fazla seçilebilir)
+          </div>
+          <img id="preview" style="display:none;">
+        </label>
+        <input type="file" id="fileInput" accept="image/jpeg,image/png" multiple>
+      </div>
+
+      <div class="status-line" id="statusLine"></div>
+      <div class="error" id="errorLine"></div>
+
+      <div class="nav" id="navControls">
+        <button class="nav-btn" id="prevBtn" aria-label="Önceki sonuç">‹</button>
+        <div class="nav-counter" id="navCounter">1 / 1</div>
+        <button class="nav-btn" id="nextBtn" aria-label="Sonraki sonuç">›</button>
+      </div>
+
+      <div class="result" id="result">
+        <div class="result-label">
+          <div class="name" id="resultName">—</div>
+          <div class="conf" id="resultConf"></div>
+        </div>
+        <div class="bars" id="bars"></div>
+        <button class="reset-btn" id="resetBtn">Yeniden dene</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+  const CLASS_META = {
+    fertile:   { tr: 'Fertil',    color: '#7fa36b' },
+    infertile: { tr: 'İnfertil',  color: '#9c9384' },
+    dead:      { tr: 'Ölü',       color: '#a13d2e' },
+  };
+
+  const egg = document.getElementById('egg');
+  const glow = document.getElementById('glow');
+  const fileInput = document.getElementById('fileInput');
+  const preview = document.getElementById('preview');
+  const eggHint = document.getElementById('eggHint');
+  const statusLine = document.getElementById('statusLine');
+  const errorLine = document.getElementById('errorLine');
+  const resultBox = document.getElementById('result');
+  const resultName = document.getElementById('resultName');
+  const resultConf = document.getElementById('resultConf');
+  const bars = document.getElementById('bars');
+  const resetBtn = document.getElementById('resetBtn');
+  const navControls = document.getElementById('navControls');
+  const navCounter = document.getElementById('navCounter');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  let results = [];
+  let currentIndex = 0;
+
+  ['dragover','dragenter'].forEach(evt =>
+    egg.addEventListener(evt, e => { e.preventDefault(); egg.classList.add('dragover'); })
+  );
+  ['dragleave','drop'].forEach(evt =>
+    egg.addEventListener(evt, e => { e.preventDefault(); egg.classList.remove('dragover'); })
+  );
+  egg.addEventListener('drop', e => {
+    if (e.dataTransfer.files.length) processFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) processFiles(fileInput.files);
+  });
+
+  resetBtn.addEventListener('click', resetAll);
+  prevBtn.addEventListener('click', () => showAtIndex(currentIndex - 1));
+  nextBtn.addEventListener('click', () => showAtIndex(currentIndex + 1));
+
+  document.addEventListener('keydown', e => {
+    if (navControls.style.display === 'none' || !navControls.style.display) return;
+    if (e.key === 'ArrowLeft') showAtIndex(currentIndex - 1);
+    if (e.key === 'ArrowRight') showAtIndex(currentIndex + 1);
+  });
+
+  let touchStartX = null;
+  egg.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].clientX; });
+  egg.addEventListener('touchend', e => {
+    if (touchStartX === null || results.length < 2) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) showAtIndex(currentIndex + 1);
+      else showAtIndex(currentIndex - 1);
+    }
+    touchStartX = null;
+  });
+
+  function resetAll(){
+    fileInput.value = '';
+    preview.style.display = 'none';
+    eggHint.style.display = 'block';
+    resultBox.classList.remove('show');
+    errorLine.style.display = 'none';
+    statusLine.textContent = '';
+    statusLine.classList.remove('pulsing');
+    glow.style.setProperty('--glow-color', 'var(--amber-dim)');
+    navControls.style.display = 'none';
+    results = [];
+    currentIndex = 0;
+  }
+
+  const ANALYSIS_MESSAGES = [
+    'Işığa tutuluyor…',
+    'Kabuk ve kenar analiz ediliyor…',
+    'Embriyo tespiti yapılıyor…',
+    'Damarlanma değerlendiriliyor…',
+    'Sonuç hesaplanıyor…',
+  ];
+
+  async function processFiles(fileList){
+    const files = Array.from(fileList).filter(f =>
+      f.type === 'image/jpeg' || f.type === 'image/png' || f.type === 'image/jpg'
+    );
+    if (!files.length) return;
+
+    errorLine.style.display = 'none';
+    resultBox.classList.remove('show');
+    navControls.style.display = 'none';
+    results = [];
+    currentIndex = 0;
+
+    // İlk görüntüyü yumurdanın içinde önizleme olarak göster
+    preview.src = URL.createObjectURL(files[0]);
+    preview.style.display = 'block';
+    eggHint.style.display = 'none';
+
+    statusLine.classList.add('pulsing');
+    glow.style.setProperty('--glow-color', 'var(--amber)');
+
+    const batchTag = files.length > 1 ? ` (${files.length} görüntü)` : '';
+    let msgIndex = 0;
+    statusLine.textContent = ANALYSIS_MESSAGES[0] + batchTag;
+    const msgTimer = setInterval(() => {
+      msgIndex = (msgIndex + 1) % ANALYSIS_MESSAGES.length;
+      statusLine.textContent = ANALYSIS_MESSAGES[msgIndex] + batchTag;
+    }, 1100);
+
+    // Görüntü sayısı ne olursa olsun (1 ya da 10 fark etmez) toplam bekleme
+    // süresi her zaman 4-6 sn arasında rastgele bir değer olacak.
+    const minWait = 4000 + Math.random() * 2000;
+    const waitPromise = new Promise(res => setTimeout(res, minWait));
+
+    // Tüm görüntüler paralel olarak sunucuya gönderilir; gerçek işleme süresi
+    // yukarıdaki sabit bekleme süresinin arkasında gizlenir.
+    const classifyPromises = files.map(file => classifyOne(file));
+
+    const [settled] = await Promise.all([
+      Promise.allSettled(classifyPromises),
+      waitPromise,
+    ]);
+    clearInterval(msgTimer);
+
+    settled.forEach((outcome, i) => {
+      if (outcome.status === 'fulfilled'){
+        results.push({ url: URL.createObjectURL(files[i]), data: outcome.value });
+      } else {
+        errorLine.textContent = `Hata (${files[i].name}): ${outcome.reason.message}`;
+        errorLine.style.display = 'block';
+      }
+    });
+
+    if (results.length){
+      navControls.style.display = results.length > 1 ? 'flex' : 'none';
+      showAtIndex(0);
+    } else {
+      resetAll();
+    }
+  }
+
+  async function classifyOne(file){
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch('/predict', { method: 'POST', body: formData });
+    if(!res.ok){
+      const err = await res.json().catch(() => ({detail: 'Bilinmeyen hata'}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  function showAtIndex(idx){
+    if (idx < 0 || idx >= results.length) return;
+    currentIndex = idx;
+    const item = results[idx];
+
+    preview.src = item.url;
+    preview.style.display = 'block';
+    eggHint.style.display = 'none';
+    statusLine.textContent = '';
+    statusLine.classList.remove('pulsing');
+    errorLine.style.display = 'none';
+
+    showResult(item.data);
+
+    navCounter.textContent = `${idx + 1} / ${results.length}`;
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === results.length - 1;
+  }
+
+  function showResult(data){
+    const meta = CLASS_META[data.predicted_class] || { tr: data.predicted_class, color: '#ede6d6' };
+
+    resultName.textContent = meta.tr;
+    resultName.style.setProperty('--result-color', meta.color);
+    resultConf.textContent = `%${data.confidence.toFixed(2)} güven`;
+
+    glow.style.setProperty('--glow-color', meta.color);
+
+    bars.innerHTML = '';
+    const order = ['fertile', 'infertile', 'dead'];
+    order.forEach(cls => {
+      const pct = data.all_probabilities[cls] ?? 0;
+      const m = CLASS_META[cls];
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <div class="label">${m.tr}</div>
+        <div class="bar-track"><div class="bar-fill" style="background:${m.color}"></div></div>
+        <div class="bar-pct">%${pct.toFixed(1)}</div>
+      `;
+      bars.appendChild(row);
+      requestAnimationFrame(() => {
+        row.querySelector('.bar-fill').style.width = pct + '%';
+      });
+    });
+
+    resultBox.classList.add('show');
+  }
+</script>
+
+</body>
+</html>
